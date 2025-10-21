@@ -2,12 +2,10 @@ import copy
 import heapq
 import random
 import time
+from itertools import islice
 
-
-def print_board(board: list[list[str]]):
-    for row in board:
-        print(" ".join(row))
-    print()
+from memory_profiler import memory_usage
+from prettytable import PrettyTable
 
 
 class HeuristicUtils:
@@ -76,6 +74,7 @@ class AStarSearch(HeuristicUtils):
                     for move in valid_moves:
                         new_x = state_x + move[0] if state_x + move[0] <= 2 else -1
                         new_y = state_y + move[1] if state_y + move[1] <= 2 else -1
+                        # If the new position is invalid (out of bounds --> -1), skip it, else switch the elements
                         if new_x != -1 and new_y != -1:
                             new_valid_state = copy.deepcopy(state_to_explore)
                             new_valid_state[state_x][state_y], new_valid_state[new_x][new_y] = new_valid_state[new_x][
@@ -119,6 +118,7 @@ class AStarSearch(HeuristicUtils):
         Perform the A* search algorithm to find the shortest path from the current state to the goal
         state with Hamming heuristic.
 
+        :param heuristic_function: The heuristic function to use (Hamming or Manhattan).
         :param current: Current state of the board as a 2D list.
         :param goal: Goal state of the board as a 2D list.
         :return int: The cost of the shortest path.
@@ -146,7 +146,6 @@ class AStarSearch(HeuristicUtils):
         while heap:
             f_n, g_n, state_to_explore = heapq.heappop(heap)
             if state_to_explore == goal:
-                # return AStarSearch.reconstruct_path(state_info, goal)
                 return g_n
 
             states_to_store: list[list[list[str]]] = AStarSearch.get_nearest_neighbours(state_to_explore)
@@ -163,58 +162,92 @@ class AStarSearch(HeuristicUtils):
         return None
 
 
-def generate2dmatrix() -> list[list[str]]:
-    """
-    Generates a 3x3 two-dimensional matrix which randomly places numbers from 1 to 8 and a blank space.
-    The blank space is represented as an empty string.
+class GenerateUtils:
+    @staticmethod
+    def generate_solvable_matrices(count):
+        """
+        Generates a specified number of solvable 3x3 two-dimensional matrices for the 8-puzzle.
+        Each matrix contains numbers from 1 to 8 and a blank space represented as an empty string.
+        :param count: Number of solvable matrices to generate.
+        :return: A generator yielding solvable 3x3 matrices.
+        """
+        for _ in range(count):
+            matrix = GenerateUtils.generate2dmatrix()
+            if AStarSearch().isSolvable([list(row) for row in matrix]):
+                yield matrix
 
-    :return: A 3x3 matrix with numbers 1-8 and a blank space.
-    """
-    elements = list(map(str, range(1, 9))) + ["_"]
-    random.shuffle(elements)
-    matrix = [
-        elements[0:3],
-        elements[3:6],
-        elements[6:9]
-    ]
-    return matrix
+    @staticmethod
+    def generate2dmatrix() -> list[list[str]]:
+        """
+        Generates a 3x3 two-dimensional matrix which randomly places numbers from 1 to 8 and a blank space.
+        The blank space is represented as an empty string.
+
+        :return: A 3x3 matrix with numbers 1-8 and a blank space.
+        """
+        elements = list(map(str, range(1, 9))) + ["_"]
+        random.shuffle(elements)
+        matrix = [
+            elements[0:3],
+            elements[3:6],
+            elements[6:9]
+        ]
+        return matrix
+
+
+class TestClass:
+    memory_increase: float = 0.0
+    max_memory: float = 0.0
+    execution_time: float = 0.0
+    heuristic_function = None
+
+    def __init__(self, function):
+        self.heuristic_function = function
+        pass
+
+    def test_function(self,
+                      list_of_initial_matrix: list[list[list[str]]],
+                      list_of_goal_matrix: list[list[list[str]]]):
+        mem_usage = memory_usage(
+            (self.test_a_star_function, (list_of_initial_matrix, list_of_goal_matrix)),
+        )
+
+        self.memory_increase = round(max(mem_usage) - min(mem_usage), 2)
+        self.max_memory = round(max(mem_usage), 2)
+
+        self.__print_results_table()
+
+    def test_a_star_function(self,
+                             list_of_initial_matrix: list[list[list[str]]],
+                             list_of_goal_matrix: list[list[list[str]]]):
+        """
+        Test the A* search algorithm with the specified heuristic function on multiple test cases.
+        :param list_of_initial_matrix:
+        :param list_of_goal_matrix:
+        :return:
+        """
+        i: int = 1
+        self.start_time = time.time()
+
+        for initial_state, goal_state in zip(list_of_initial_matrix, list_of_goal_matrix):
+            AStarSearch().a_star_hamming(initial_state, goal_state, self.heuristic_function)
+            i += 1
+
+        self.end_time = time.time()
+        self.execution_time = round(self.end_time - self.start_time, 2)
+
+    def __print_results_table(self):
+        table = PrettyTable(["Heuristic", "Time (s)", "Memory Increase (MiB)", "Peak Memory (MiB)"])
+        table.add_row([self.heuristic_function.__name__, self.execution_time, self.memory_increase, self.max_memory])
+        print(table)
 
 
 if __name__ == "__main__":
-    initial_state = generate2dmatrix()
-    goal_state = generate2dmatrix()
+    list_of_initial_matrices = list(islice(GenerateUtils.generate_solvable_matrices(200), 100))
+    list_of_goal_matrices = list(islice(GenerateUtils.generate_solvable_matrices(200), 100))
 
-    i: int = 1
+    hamming_test: TestClass = TestClass(HeuristicUtils.hamming)
+    hamming_test.test_function(list_of_initial_matrices, list_of_goal_matrices)
 
-    start_time = time.time()
-    list_of_initial_matrix = [
-        matrix for matrix in (generate2dmatrix() for _ in range(200))
-        if AStarSearch().isSolvable([list(row) for row in matrix])
-    ]
-    list_of_goal_matrix = [
-        matrix for matrix in (generate2dmatrix() for _ in range(200))
-        if AStarSearch().isSolvable([list(row) for row in matrix])
-    ]
-
-    start_time = time.time()
-
-    print("Lenght of list of initial matrix: ", len(list_of_initial_matrix))
-    print("Lenght of list of goal matrix: ", len(list_of_goal_matrix))
-    print("Length of the zipped list: ", len(list(zip(list_of_initial_matrix, list_of_goal_matrix))))
-    for initial_state, goal_state in zip(list_of_initial_matrix, list_of_goal_matrix):
-        print("Hamming Test case ", i, " completed.")
-        result_hamming = AStarSearch().a_star_hamming(initial_state, goal_state, HeuristicUtils.hamming)
-        i += 1
-
-    end_time = time.time()
-    print(f"Total execution time for 100 test cases: {round(end_time - start_time, 2)} seconds for A* with Hamming")
-
-    start_time = time.time()
-    i = 1
-    for initial_state, goal_state in zip(list_of_initial_matrix, list_of_goal_matrix):
-        print("Manhattan Test case ", i, " completed.")
-        result_manhattan = AStarSearch().a_star_hamming(initial_state, goal_state, HeuristicUtils.manhattan)
-        i += 1
-
-    end_time = time.time()
-    print(f"Total execution time for 100 test cases: {round(end_time - start_time, 2)} seconds for A* with Manhattan")
+    print("\n" * 5)
+    manhattan_test: TestClass = TestClass(HeuristicUtils.manhattan)
+    manhattan_test.test_function(list_of_initial_matrices, list_of_goal_matrices)
