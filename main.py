@@ -2,7 +2,6 @@ import copy
 import heapq
 import random
 import time
-from itertools import islice
 
 from memory_profiler import memory_usage
 from prettytable import PrettyTable
@@ -20,12 +19,16 @@ class HeuristicUtils:
         Calculate the Manhattan distance between the current state `c` and the goal state `g`.
         The Manhattan distance is the sum of the absolute differences between the
         positions of each tile in the current state and its position in the goal state.
+        :param current: Current state of the board as a 2D list.
+        :param goal: Goal state of the board as a 2D list.
         :return int: The Manhattan distance.
         """
         distance = 0
 
+        # Iterate through each element in the current state
         for current_x, current_row in enumerate(current):
             for current_y, current_element in enumerate(current_row):
+                # Find the position of the current element in the goal state
                 for goal_x, goal_row in enumerate(goal):
                     for goal_y, goal_element in enumerate(goal_row):
                         if current_element == goal_element and current_element != "_":
@@ -45,10 +48,8 @@ class HeuristicUtils:
 
         distance = 0
         for row1, row2 in zip(current, goal):
-            if len(row1) != len(row2):
-                raise ValueError("Arrays must have the same number of columns")
             for elem1, elem2 in zip(row1, row2):
-                if elem1 != elem2:
+                if elem1 != elem2 and elem1 != "_":
                     distance += 1
         return distance
 
@@ -113,7 +114,7 @@ class AStarSearch(HeuristicUtils):
         return inversions % 2 == 0
 
     @staticmethod
-    def a_star_hamming(current: list[list[str]], goal: list[list[str]], heuristic_function) -> list:
+    def a_star_search(current: list[list[str]], goal: list[list[str]], heuristic_function) -> list:
         """
         Perform the A* search algorithm to find the shortest path from the current state to the goal
         state with Hamming heuristic.
@@ -171,10 +172,14 @@ class GenerateUtils:
         :param count: Number of solvable matrices to generate.
         :return: A generator yielding solvable 3x3 matrices.
         """
-        for _ in range(count):
+        list_of_matrices: list[list[list[str]]] = []
+
+        while len(list_of_matrices) < count:
             matrix = GenerateUtils.generate2dmatrix()
-            if AStarSearch().isSolvable([list(row) for row in matrix]):
-                yield matrix
+            if AStarSearch().isSolvable(matrix):
+                list_of_matrices.append(matrix)
+
+        return list_of_matrices
 
     @staticmethod
     def generate2dmatrix() -> list[list[str]]:
@@ -206,9 +211,14 @@ class TestClass:
 
     def test_function(self,
                       list_of_initial_matrix: list[list[list[str]]],
-                      list_of_goal_matrix: list[list[list[str]]]):
+                      goal_state: list[list[str]]):
+        """
+        Execute the test function to measure memory usage and execution time.
+        :param list_of_initial_matrix: The list of initial matrices.
+        :param goal_state:  The list of goal matrices.
+        """
         mem_usage = memory_usage(
-            (self.test_a_star_function, (list_of_initial_matrix, list_of_goal_matrix)),
+            (self.test_a_star_function, (list_of_initial_matrix, goal_state)),
         )
 
         self.memory_increase = round(max(mem_usage) - min(mem_usage), 2)
@@ -218,18 +228,18 @@ class TestClass:
 
     def test_a_star_function(self,
                              list_of_initial_matrix: list[list[list[str]]],
-                             list_of_goal_matrix: list[list[list[str]]]):
+                             goal_state: list[list[str]]):
         """
         Test the A* search algorithm with the specified heuristic function on multiple test cases.
-        :param list_of_initial_matrix:
-        :param list_of_goal_matrix:
+        :param list_of_initial_matrix: The list of initial matrices.
+        :param goal_state: The goal state matrix.
         :return:
         """
         i: int = 1
         self.start_time = time.time()
 
-        for initial_state, goal_state in zip(list_of_initial_matrix, list_of_goal_matrix):
-            AStarSearch().a_star_hamming(initial_state, goal_state, self.heuristic_function)
+        for initial_state in list_of_initial_matrix:
+            AStarSearch().a_star_search(initial_state, goal_state, self.heuristic_function)
             i += 1
 
         self.end_time = time.time()
@@ -242,12 +252,12 @@ class TestClass:
 
 
 if __name__ == "__main__":
-    list_of_initial_matrices = list(islice(GenerateUtils.generate_solvable_matrices(200), 100))
-    list_of_goal_matrices = list(islice(GenerateUtils.generate_solvable_matrices(200), 100))
+    list_of_initial_matrices = GenerateUtils.generate_solvable_matrices(100)
+    goal_state = [["_", "1", "2"], ["3", "4", "5"], ["6", "7", "8"]]
 
     hamming_test: TestClass = TestClass(HeuristicUtils.hamming)
-    hamming_test.test_function(list_of_initial_matrices, list_of_goal_matrices)
+    hamming_test.test_function(list_of_initial_matrices, goal_state)
 
     print("\n" * 5)
     manhattan_test: TestClass = TestClass(HeuristicUtils.manhattan)
-    manhattan_test.test_function(list_of_initial_matrices, list_of_goal_matrices)
+    manhattan_test.test_function(list_of_initial_matrices, goal_state)
