@@ -114,7 +114,7 @@ class AStarSearch(HeuristicUtils):
         return inversions % 2 == 0
 
     @staticmethod
-    def a_star_search(current: list[list[str]], goal: list[list[str]], heuristic_function) -> list:
+    def a_star_search(current: list[list[str]], goal: list[list[str]], heuristic_function):
         """
         Perform the A* search algorithm to find the shortest path from the current state to the goal
         state with Hamming heuristic.
@@ -136,6 +136,7 @@ class AStarSearch(HeuristicUtils):
         heap = []
         visited_states = {}
         state_info = {}  # {state_tuple: (g(n), parent_state)}
+        expanded_nodes = 0
 
         current_tuple = tuple(tuple(row) for row in current)
         visited_states[current_tuple] = 0
@@ -146,8 +147,9 @@ class AStarSearch(HeuristicUtils):
 
         while heap:
             f_n, g_n, state_to_explore = heapq.heappop(heap)
+            expanded_nodes+=1
             if state_to_explore == goal:
-                return g_n
+                return expanded_nodes
 
             states_to_store: list[list[list[str]]] = AStarSearch.get_nearest_neighbours(state_to_explore)
 
@@ -204,6 +206,7 @@ class TestClass:
     max_memory: float = 0.0
     execution_time: float = 0.0
     heuristic_function = None
+    number_of_nodes_expanded: int = 0
 
     def __init__(self, function):
         self.heuristic_function = function
@@ -239,15 +242,16 @@ class TestClass:
         self.start_time = time.time()
 
         for initial_state in list_of_initial_matrix:
-            AStarSearch().a_star_search(initial_state, goal_state, self.heuristic_function)
+            num = AStarSearch().a_star_search(initial_state, goal_state, self.heuristic_function)
+            self.number_of_nodes_expanded += num
             i += 1
 
         self.end_time = time.time()
         self.execution_time = round(self.end_time - self.start_time, 2)
 
     def __print_results_table(self):
-        table = PrettyTable(["Heuristic", "Time (s)", "Memory Increase (MiB)", "Peak Memory (MiB)"])
-        table.add_row([self.heuristic_function.__name__, self.execution_time, self.memory_increase, self.max_memory])
+        table = PrettyTable(["Heuristic", "Time (s)", "Number of expanded nodes", "Memory Increase (MiB)", "Peak Memory (MiB)"])
+        table.add_row([self.heuristic_function.__name__, self.execution_time, self.number_of_nodes_expanded, self.memory_increase, self.max_memory])
         print(table)
 
 
