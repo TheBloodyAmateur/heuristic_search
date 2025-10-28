@@ -259,9 +259,12 @@ if __name__ == "__main__":
     list_of_initial_matrices = GenerateUtils.generate_solvable_matrices(100)
     goal_state = [["_", "1", "2"], ["3", "4", "5"], ["6", "7", "8"]]
 
+    print("Executing tests for Hamming Heuristic, please be patient...")
+
     hamming_test: TestClass = TestClass(HeuristicUtils.hamming)
     hamming_test.test_function(list_of_initial_matrices, goal_state)
 
     print("\n" * 5)
+    print("Executing tests for Manhattan Heuristic, please be patient...")
     manhattan_test: TestClass = TestClass(HeuristicUtils.manhattan)
     manhattan_test.test_function(list_of_initial_matrices, goal_state)
